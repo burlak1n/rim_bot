@@ -1,3 +1,4 @@
 *.xlsx
 credentials.json
 __pycache__/
+.env
