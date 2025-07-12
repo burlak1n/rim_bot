@@ -270,6 +270,7 @@ class GridScheduler:
             return f"Сотрудник '{search_query}' не найден"
     
     def is_current_activity(self, start_str, end_str):
+        """Проверка текущей активности"""
         now = datetime.now().time()
         start = datetime.strptime(start_str, '%H:%M').time()
         
@@ -281,7 +282,23 @@ class GridScheduler:
                 return now >= start or now < end
         else:
             return now >= start
-            
+
+    def format_phone_number(self, phone: str) -> str:
+        """Форматирование номера телефона к формату, начинающемуся с 8"""
+        phone = phone.strip()
+        if not phone:
+            return ""
+        
+        digits = ''.join(filter(str.isdigit, phone))
+        
+        if digits.startswith('7') or digits.startswith('8'):
+            digits = '8' + digits[1:]
+        
+        if len(digits) < 11:
+            digits = '8' + digits.zfill(10)
+        
+        return digits
+
     def format_schedule_for_bot(self, person_data: Dict) -> str:
         """Форматирование расписания для бота"""
 
@@ -291,7 +308,7 @@ class GridScheduler:
             return "Данные не найдены"
         
         result = f"👤 {person_data['name']}\n"
-        result += f"📞 {person_data['phone']}\n"
+        result += f"📞 {self.format_phone_number(person_data['phone'])}\n"
         result += f"📋 {person_data['position']}\n\n"
         
         day_names = {
@@ -367,9 +384,6 @@ class GridScheduler:
             print(f"Ошибка получения листа для дня {day}: {e}")
             return None
 
-    
-
-
 
 def init_scheduler(spreadsheet_url: str = None, credentials_path: str = None):
     """Инициализация планировщика"""
@@ -386,4 +400,4 @@ if __name__ == "__main__":
         spreadsheet_url=os.getenv("SPREADSHEET_URL"),
         credentials_path=GRID_CREDENTIALS_PATH
     )
-    print(scheduler.get("Волосунин"))
+    print(scheduler.get("Бенца"))
