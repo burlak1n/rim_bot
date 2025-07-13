@@ -271,7 +271,8 @@ class GridScheduler:
     
     def is_current_activity(self, start_str, end_str):
         """Проверка текущей активности"""
-        now = datetime.now().time()
+        # now = datetime.now().time()
+        now = time(3, 0, 0)
         start = datetime.strptime(start_str, '%H:%M').time()
     
         if end_str.lower() != 'до конца':
@@ -281,12 +282,7 @@ class GridScheduler:
             else:
                 return now >= start or now < end
         else:
-            end = time(5, 00, 00)  #костыль, но по другому не могу придумать
-            if start <= end:
-                return start <= now <= end
-            else:
-                # Если вдруг "До конца" начинается до полуночи, а заканчивается после
-                return now >= start or now <= end 
+            return now >= start
     def format_phone_number(self, phone: str) -> str:
         """Форматирование номера телефона к формату, начинающемуся с 8"""
         phone = phone.strip()
@@ -332,10 +328,15 @@ class GridScheduler:
             result += f"{day_names[day]}:\n"
             
             schedule = person_data['schedule'][day]
+
+            is_current_activity = False
+
             for item in schedule:
                 line = f"{item['start']} - {item['end']}: {item['activity']}"
-                if self.is_current_activity(item['start'], item['end']):
+                if self.is_current_activity(item['start'], item['end']) and is_current_activity == False:
                     line = f"{emoji_current} {line}"
+                    is_current_activity = True
+
                 result += line + '\n'
 
             result += "\n"
