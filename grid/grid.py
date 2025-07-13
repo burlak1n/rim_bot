@@ -1,6 +1,6 @@
 import gspread
 import pandas as pd
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from typing import Dict, List, Optional
 import os
 import sys
@@ -273,7 +273,7 @@ class GridScheduler:
         """Проверка текущей активности"""
         now = datetime.now().time()
         start = datetime.strptime(start_str, '%H:%M').time()
-        
+    
         if end_str.lower() != 'до конца':
             end = datetime.strptime(end_str, '%H:%M').time()
             if start <= end:
@@ -281,8 +281,12 @@ class GridScheduler:
             else:
                 return now >= start or now < end
         else:
-            return now >= start
-
+            end = time(5, 00, 00)  #костыль, но по другому не могу придумать
+            if start <= end:
+                return start <= now <= end
+            else:
+                # Если вдруг "До конца" начинается до полуночи, а заканчивается после
+                return now >= start or now <= end 
     def format_phone_number(self, phone: str) -> str:
         """Форматирование номера телефона к формату, начинающемуся с 8"""
         phone = phone.strip()
@@ -291,11 +295,14 @@ class GridScheduler:
         
         digits = ''.join(filter(str.isdigit, phone))
         
-        if digits.startswith('7') or digits.startswith('8'):
-            digits = '8' + digits[1:]
+        if digits.startswith('7'):
+            digits = '+' + digits
         
+        elif digits.startswith(8):
+            digits = '+7' + digits[1:]
+
         if len(digits) < 11:
-            digits = '8' + digits.zfill(10)
+            digits = '+7' + digits.zfill(10)
         
         return digits
 
