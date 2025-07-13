@@ -1,6 +1,6 @@
 import gspread
 import pandas as pd
-from datetime import time
+from datetime import datetime, time, timedelta
 from typing import Dict, List, Optional
 import os
 import sys
@@ -269,13 +269,49 @@ class GridScheduler:
         else:
             return f"Сотрудник '{search_query}' не найден"
     
+    def is_current_activity(self, start_str, end_str):
+        """Проверка текущей активности"""
+        # now = datetime.now().time()
+        now = time(3, 0, 0)
+        start = datetime.strptime(start_str, '%H:%M').time()
+    
+        if end_str.lower() != 'до конца':
+            end = datetime.strptime(end_str, '%H:%M').time()
+            if start <= end:
+                return start <= now < end
+            else:
+                return now >= start or now < end
+        else:
+            return now >= start
+    def format_phone_number(self, phone: str) -> str:
+        """Форматирование номера телефона к формату, начинающемуся с 8"""
+        phone = phone.strip()
+        if not phone:
+            return ""
+        
+        digits = ''.join(filter(str.isdigit, phone))
+        
+        if digits.startswith('7'):
+            digits = '+' + digits
+        
+        elif digits.startswith(8):
+            digits = '+7' + digits[1:]
+
+        if len(digits) < 11:
+            digits = '+7' + digits.zfill(10)
+        
+        return digits
+
     def format_schedule_for_bot(self, person_data: Dict) -> str:
         """Форматирование расписания для бота"""
+
+        emoji_current = "📍"
+
         if not person_data:
             return "Данные не найдены"
         
         result = f"👤 {person_data['name']}\n"
-        result += f"📞 {person_data['phone']}\n"
+        result += f"📞 {self.format_phone_number(person_data['phone'])}\n"
         result += f"📋 {person_data['position']}\n\n"
         
         day_names = {
@@ -292,9 +328,17 @@ class GridScheduler:
             result += f"{day_names[day]}:\n"
             
             schedule = person_data['schedule'][day]
+
+            is_current_activity = False
+
             for item in schedule:
-                result += f"    {item['start']} - {item['end']}: {item['activity']}\n"
-            
+                line = f"{item['start']} - {item['end']}: {item['activity']}"
+                if self.is_current_activity(item['start'], item['end']) and is_current_activity == False:
+                    line = f"{emoji_current} {line}"
+                    is_current_activity = True
+
+                result += line + '\n'
+
             result += "\n"
         
         return result.strip()
@@ -348,6 +392,7 @@ class GridScheduler:
             print(f"Ошибка получения листа для дня {day}: {e}")
             return None
 
+
 def init_scheduler(spreadsheet_url: str = None, credentials_path: str = None):
     """Инициализация планировщика"""
     global scheduler
@@ -363,4 +408,4 @@ if __name__ == "__main__":
         spreadsheet_url=os.getenv("SPREADSHEET_URL"),
         credentials_path=GRID_CREDENTIALS_PATH
     )
-    print(scheduler.get("Будай"))
+    print(scheduler.get("Бенца"))
