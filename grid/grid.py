@@ -366,7 +366,7 @@ class GridScheduler:
 
                 result += line + '\n'
 
-            
+            result += '\n'
 
             if weekday_now == day_names[day][1]:
                 if current_activity_id is not None:
@@ -378,7 +378,8 @@ class GridScheduler:
                         current_activity_text += "Следующее: свободен\n"
                 else: 
                     current_activity_text = "Сейчас: свободен\nСледующее: свободен"
-
+            else:
+                current_activity_text = ''
             
         result += "\n" + current_activity_text
         return result.strip()
