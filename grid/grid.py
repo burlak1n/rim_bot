@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, time, timedelta
 from typing import Dict, List, Optional
 import os
+import json
 import sys
 from pathlib import Path
 
@@ -207,7 +208,7 @@ class GridScheduler:
         # Добавляем последнюю активность
         schedule.append({
             'start': self._format_time(current_start),
-            'end': 'До конца',
+            'end': 'xx:xx',
             'activity': current_activity
         })
         
@@ -253,10 +254,11 @@ class GridScheduler:
 
             schedule = person_schedule[day]
             for item in schedule:
-                output[day] += f"    {item['start']} - {item['end']}: {item['activity']} \n"
+                output[day] += f"    {item['start']} - {item['end']}: {item['activity']} \n" 
             
             output[day] += "\n"
         return output
+    
     def get(self, search_query: str):
         """Получение расписания сотрудника для бота"""
         if not search_query:
@@ -269,13 +271,31 @@ class GridScheduler:
         else:
             return f"Сотрудник '{search_query}' не найден"
     
-    def is_current_activity(self, start_str, end_str):
+    def format_time(self, time):
+        """Приведение времени в формат xx:xx"""
+        #0:00 => 00:00
+        time_string = ''
+        time_split = time.split(':')
+
+        if len(time_split[0]) == 1:
+            time_string += '0' + time_split[0]
+        else:
+            time_string += time_split[0]
+
+        time_string += ':' + time_split[1]
+
+        return time_string
+
+        
+
+    def is_current_activity(self, start_str, end_str, now):
         """Проверка текущей активности"""
-        # now = datetime.now().time()
-        now = time(3, 0, 0)
+
+        now = now.time() #получаем часы, минуты, секунды
+    
         start = datetime.strptime(start_str, '%H:%M').time()
     
-        if end_str.lower() != 'до конца':
+        if end_str.lower() != 'xx:xx':
             end = datetime.strptime(end_str, '%H:%M').time()
             if start <= end:
                 return start <= now < end
@@ -283,8 +303,10 @@ class GridScheduler:
                 return now >= start or now < end
         else:
             return now >= start
+        
     def format_phone_number(self, phone: str) -> str:
         """Форматирование номера телефона к формату, начинающемуся с 8"""
+
         phone = phone.strip()
         if not phone:
             return ""
@@ -294,7 +316,7 @@ class GridScheduler:
         if digits.startswith('7'):
             digits = '+' + digits
         
-        elif digits.startswith(8):
+        elif digits.startswith("8"):
             digits = '+7' + digits[1:]
 
         if len(digits) < 11:
@@ -305,42 +327,60 @@ class GridScheduler:
     def format_schedule_for_bot(self, person_data: Dict) -> str:
         """Форматирование расписания для бота"""
 
+        now = datetime.now() #получаем объект времени в данный момент
+        weekday_now = now.weekday() #получаем порядковый номер дня недели (-1)
+
         emoji_current = "📍"
 
         if not person_data:
             return "Данные не найдены"
         
-        result = f"👤 {person_data['name']}\n"
-        result += f"📞 {self.format_phone_number(person_data['phone'])}\n"
-        result += f"📋 {person_data['position']}\n\n"
+        result = f"👀 {person_data['name']}\n"
+        result += f"📱 {self.format_phone_number(person_data['phone'])}\n"
+        result += f"✏️ {person_data['position']}\n\n"
         
         day_names = {
-            'четверг': '📅 Четверг',
-            'пятница': '📅 Пятница', 
-            'суббота': '📅 Суббота',
-            'воскресенье': '📅 Воскресенье'
+            'четверг': ['Четверг', 3], #добавил порядковый номер дня недели -1 для проверки текущей активности
+            'пятница': ['Пятница', 4], 
+            'суббота': ['Суббота', 5],
+            'воскресенье': ['Воскресенье', 6]
         }
-        
+
+
         for day in self.days:
             if day not in person_data['schedule']:
                 continue
                 
-            result += f"{day_names[day]}:\n"
+            result += f"<b>{day_names[day][0]}</b>\n".upper()
             
             schedule = person_data['schedule'][day]
 
             is_current_activity = False
-
-            for item in schedule:
-                line = f"{item['start']} - {item['end']}: {item['activity']}"
-                if self.is_current_activity(item['start'], item['end']) and is_current_activity == False:
-                    line = f"{emoji_current} {line}"
+            current_activity_id = None
+            for idx, item in enumerate(schedule):
+                line = f"{self.format_time(item['start'])} — {self.format_time(item['end'])} {item['activity']}"
+                if self.is_current_activity(item['start'], item['end'], now) and is_current_activity == False and weekday_now == day_names[day][1]:
+                    line = f"<b>{emoji_current} {line}</b>"
                     is_current_activity = True
+                    current_activity_id = idx
 
                 result += line + '\n'
 
-            result += "\n"
-        
+            
+
+            if weekday_now == day_names[day][1]:
+                if current_activity_id is not None:
+                    current_activity_text = f"Сейчас: {schedule[current_activity_id]['activity']}\n"
+
+                    if current_activity_id + 1 < len(schedule):
+                        current_activity_text += f"Следующее: {schedule[current_activity_id + 1]['activity']}\n"
+                    else:
+                        current_activity_text += "Следующее: свободен\n"
+                else: 
+                    current_activity_text = "Сейчас: свободен\nСледующее: свободен"
+
+            
+        result += "\n" + current_activity_text
         return result.strip()
 
     def _get_days_from_sheets(self) -> List[str]:
@@ -380,7 +420,6 @@ class GridScheduler:
             
         try:
             all_worksheets = self.spreadsheet.worksheets()
-            
             for worksheet in all_worksheets:
                 worksheet_name = worksheet.title.lower()
                 if day in worksheet_name:
@@ -391,7 +430,59 @@ class GridScheduler:
         except Exception as e:
             print(f"Ошибка получения листа для дня {day}: {e}")
             return None
+    def format_important_numbers_for_bot(self):
+        """Форматирование важных номеров для бота"""
 
+        data = self.get_important_numbers()
+        string = ''
+        
+        if not data:
+            return 'Нет данных'
+        
+        # print(data)
+
+        for emp in data:
+            print(emp)
+            name = emp['имя']
+            phone = emp['телефон']
+            job_title = emp['должность']
+            string += f"<b>{name}</b>\n{self.format_phone_number(phone)}\n{job_title}\n\n"
+        return string
+
+
+    def get_important_numbers(self):
+        """Получение листа с важными номерами"""
+
+        if not self.spreadsheet:
+            return None
+        
+        try:
+            all_worksheets = self.spreadsheet.worksheets()
+
+            for worksheet in all_worksheets:
+                worksheet_name = worksheet.title.lower()
+
+                if worksheet_name == "важные номера":
+                    
+                    data = worksheet.get_all_records()
+                    df = pd.DataFrame(data)
+                    df['Телефон'] = df['Телефон'].astype(str).apply(self.format_phone_number) #преобразовываем все номера к международному формату
+                    
+                    try:
+                        dict_data = df.to_dict(orient='records')
+                        
+                        dict_format = [{k.lower().strip(): v for k, v in d.items()} for d in dict_data]
+                        # print(dict_format)
+                        # print( type(dict_format))
+                        return dict_format
+                    
+                    except Exception as er:
+                        print(er)
+                        return None
+
+        except Exception as e:
+            print(f'Ошибка получеиня листа для листа Важные номера: {e}')
+            return None
 
 def init_scheduler(spreadsheet_url: str = None, credentials_path: str = None):
     """Инициализация планировщика"""
@@ -408,4 +499,5 @@ if __name__ == "__main__":
         spreadsheet_url=os.getenv("SPREADSHEET_URL"),
         credentials_path=GRID_CREDENTIALS_PATH
     )
-    print(scheduler.get("Бенца"))
+    # print(scheduler.get("Бенца"))
+    print(scheduler.format_important_numbers_for_bot())
