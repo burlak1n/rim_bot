@@ -10,13 +10,10 @@ import sys
 from pathlib import Path
 from enum import Enum
 
-# Добавляем родительскую директорию в sys.path если её нет
 current_dir = Path(__file__).parent.parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-
-# Перечисление для уровней доступа
 
 class AccessLevel(Enum):
     GUEST = "guest"
@@ -170,7 +167,6 @@ class EmployeeUser(BaseUser):
         return ["view_any_schedule", "view_contacts", "search_colleagues",
                 "view_department_info"]
 
-    # ПОЛИМОРФИЗМ: Специализированное приветствие
     def format_greeting(self) -> str:
         dept_info = f" ({self._department})" if self._department else ""
         return f"Привет, сотрудник {self._name}{dept_info}!"
@@ -282,12 +278,8 @@ class GridScheduler:
             if self.connect():
                 self._days = self._get_days_from_sheets()
 
-    # ПОЛИМОРФИЗМ: Фабричный метод для создания пользователей разных типов
     def create_user(self, user_type: str, user_id: str, name: str, **kwargs) -> BaseUser:
         """Фабричный метод создания пользователей
-
-        Демонстрирует полиморфизм через создание объектов разных классов
-        с единым интерфейсом.
         """
 
         user_factories = {
@@ -326,7 +318,6 @@ class GridScheduler:
             print(f"Пользователь {self._current_user.name} вышел из системы")
             self._current_user = None
 
-    # ПОЛИМОРФИЗМ в действии: метод работает по-разному для разных типов пользователей
     def get_schedule(self, search_query: str, target_user: str = None) -> str:
         """Получение расписания с проверкой прав доступа
 
@@ -358,7 +349,6 @@ class GridScheduler:
         if not self._current_user:
             return "❌ Ошибка: Необходимо войти в систему"
 
-        # ПОЛИМОРФНАЯ ПРОВЕРКА: только администраторы могут изменять
         if not self._current_user.can_modify_schedule():
             available_actions = ", ".join(
                 self._current_user.get_available_actions())
@@ -381,7 +371,6 @@ class GridScheduler:
         if not self._current_user:
             return "❌ Войдите в систему для получения меню"
 
-        # ПОЛИМОРФИЗМ: каждый тип пользователя имеет свой набор действий
         actions = self._current_user.get_available_actions()
         greeting = self._current_user.format_greeting()
         user_info = self._current_user.format_user_info()
@@ -423,7 +412,7 @@ class GridScheduler:
 
         return stats
 
-    # Приватные методы (ИНКАПСУЛЯЦИЯ)
+    # Приватные методы
     def _log_action(self, action: str):
         """Приватный метод логирования действий"""
         log_entry = {
@@ -509,8 +498,3 @@ def init_scheduler(spreadsheet_url: str = None, credentials_path: str = None):
         credentials_path=credentials_path
     )
     return scheduler
-
-
-if __name__ == "__main__":
-    # Демонстрация принципов ООП
-    demonstrate_oop_features()
