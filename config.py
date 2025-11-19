@@ -14,7 +14,9 @@ GRID_CREDENTIALS_PATH = "../credentials.json"
 
 # === ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ ===
 CALENDAR_URL = os.getenv("CALENDAR_URL")
-# BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMINS = os.getenv("ADMINS", "").split(',') 
+SPREADSHEET_URL = os.getenv('SPREADSHEET_URL') 
 # BOT_USERNAME = os.getenv("BOT_USERNAME")
 # DATABASE_URL = os.getenv("DATABASE_URL", "rim.db")
 # PORT = os.getenv("PORT", "8080")
@@ -63,6 +65,14 @@ def validate_config():
             "CALENDAR_URL=your_google_sheets_url_here"
         )
     
+    # Проверяем наличие токена бота
+    if not BOT_TOKEN:
+        errors.append(
+            "BOT_TOKEN не найден в переменных окружения. "
+            "Создайте файл .env в корневой директории проекта и добавьте строку: "
+            "BOT_TOKEN=your_bot_token_here"
+        )
+
     # Проверяем наличие credentials файла
     if not os.path.exists(CREDS_FILE):
         errors.append(
